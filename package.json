@@ -1,0 +1,30 @@
+{
+  "name": "obsidian-inbox-filer",
+  "version": "0.1.0",
+  "description": "Obsidian plugin that tags and files the notes in your inbox, using your rules first and Claude for the rest, with a preview before anything moves.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit && node esbuild.config.mjs production",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "inbox",
+    "claude"
+  ],
+  "author": "Tom Lowndes",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "builtin-modules": "^5.4.0",
+    "esbuild": "^0.28.2",
+    "obsidian": "^1.14.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  }
+}
