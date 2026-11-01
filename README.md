@@ -8,7 +8,7 @@ It's the vault version of [Folder Tidy](https://github.com/tlowndes/folder-tidy)
 
 1. Every night at the time you pick (22:00 by default), it looks at the top level of your inbox folder (`01 - Inbox` by default). If Obsidian was closed at that time, it catches up the next time you open it.
 2. **Your rules go first.** A rule can match a tag, a word in the note, a word in the title, or a frontmatter property, and it sends the note to a folder and can add tags. The first match wins.
-3. **Claude handles the rest.** For notes no rule catches, Claude picks one of your existing folders and suggests up to three tags, preferring tags you already use.
+3. **Claude handles the rest.** For notes no rule catches, Claude picks one of your existing folders and suggests up to three tags, preferring tags you already use. By default this goes through **Claude Code** on your computer, so it runs on your Claude subscription with no API key. You can switch to the Anthropic API, or turn Claude off and use rules alone.
 4. **The preview.** Each note shows where it's going and why: green for a rule, accent colour for Claude, grey when there's no suggestion. Untick anything, change a folder or tags, then press **File**.
 5. **Undo.** Run "Undo last filing" from the command palette to put the last batch back and remove the tags it added.
 
@@ -31,15 +31,19 @@ Notes are moved with Obsidian's own rename, so links to them keep working.
 | --- | --- |
 | Inbox folder | `01 - Inbox` |
 | Check every night / Time | On / `22:00` |
-| Suggest with Claude | On |
-| Anthropic API key | (empty) |
-| Model | `claude-opus-5-5` |
+| Suggestions from | Claude Code (your Claude subscription) |
+| Claude Code path / model | found automatically / Claude Code's default |
+| Anthropic API key / model (API only) | (empty) / `claude-opus-5-5` |
 | Folders to leave out | `.trash`, `Templates` |
 | Rules | none |
 
+### Using Claude Code (the default)
+
+[Install Claude Code](https://code.claude.com/docs/en/setup) and run `claude` once in a terminal to sign in. The plugin then runs `claude -p` in the background with no tools, no MCP servers and no saved session, so it only reads the notes it's given. It looks in the usual install folders (on Windows, `%USERPROFILE%\.local\bin\claude.exe`). If yours is somewhere else, set the path in settings. Usage counts towards your Claude plan's limits.
+
 ### Privacy and cost
 
-Only notes that no rule catches are sent to Anthropic's API, and only up to 6,000 characters of each one, in batches of 20. Your API key stays in this vault's `.obsidian/plugins/inbox-filer/data.json`. A typical night costs a fraction of a penny. Turn Claude off and it works on rules alone.
+Only notes that no rule catches are sent to Claude, and only up to 6,000 characters of each one, in batches of 20. With the API option, your key stays in this vault's `.obsidian/plugins/inbox-filer/data.json` and a typical night costs a fraction of a penny.
 
 ## Install by hand
 
@@ -51,7 +55,7 @@ Only notes that no rule catches are sent to Anthropic's API, and only up to 6,00
 
 ```bash
 npm install
-npm test          # unit tests for the rules, planner, schedule and Claude helpers
+npm test          # unit tests for the rules, planner, schedule, Claude API and Claude Code helpers
 npm run build     # type-check and bundle main.js
 npm run dev       # rebuild on save
 ```

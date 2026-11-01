@@ -1,5 +1,6 @@
 import { Notice, Plugin, TFile, TFolder, getAllTags, normalizePath } from "obsidian";
 import { AiError, suggestWithClaude } from "./core/ai";
+import { suggestWithClaudeCode } from "./core/claudeCode";
 import { freePath, mergeAiSuggestions, planWithRules } from "./core/plan";
 import { isDue } from "./core/schedule";
 import type { MoveRecord, NoteInfo, PlanItem } from "./core/types";
@@ -99,19 +100,24 @@ export default class InboxFilerPlugin extends Plugin {
 			let suggestions = null;
 			let aiError: string | null = null;
 			let aiNote = "No rule matched; pick a folder";
-			if (leftover.length && this.settings.aiEnabled) {
-				if (!this.settings.apiKey) {
+			const engine = this.settings.engine;
+			if (leftover.length && engine !== "off") {
+				if (engine === "api" && !this.settings.apiKey) {
 					aiNote = "No rule matched. Add an API key in settings for Claude's suggestions";
 				} else {
 					const notice = new Notice(`Asking Claude about ${leftover.length} note${leftover.length === 1 ? "" : "s"}…`, 0);
 					try {
-						suggestions = await suggestWithClaude({
-							apiKey: this.settings.apiKey,
-							model: this.settings.model,
-							notes: leftover,
-							folders,
-							tags: this.vaultTags(),
-						});
+						const common = { notes: leftover, folders, tags: this.vaultTags() };
+						suggestions =
+							engine === "claude-code"
+								? await suggestWithClaudeCode({
+										...common,
+										command: this.settings.claudePath,
+										model: this.settings.claudeModel,
+										platform: process.platform,
+										env: process.env,
+									})
+								: await suggestWithClaude({ ...common, apiKey: this.settings.apiKey, model: this.settings.model });
 						aiNote = "Claude wasn't sure; pick a folder";
 					} catch (err) {
 						aiError = err instanceof AiError ? err.message : "Claude's suggestions failed, so only your rules were used.";

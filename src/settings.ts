@@ -3,11 +3,18 @@ import type InboxFilerPlugin from "./main";
 import type { MoveRecord, Rule, RuleMatch } from "./core/types";
 import { parseTime } from "./core/schedule";
 
+export type AiEngine = "claude-code" | "api" | "off";
+
 export interface InboxFilerSettings {
 	inboxFolder: string;
 	nightly: boolean;
 	runTime: string;
-	aiEnabled: boolean;
+	/** Who suggests folders for notes no rule catches. */
+	engine: AiEngine;
+	/** Path to the claude command. Empty means look in the usual places. */
+	claudePath: string;
+	/** Model for Claude Code. Empty means Claude Code's own default. */
+	claudeModel: string;
 	apiKey: string;
 	model: string;
 	/** Folders never offered as destinations (one per line). Sub-folders are left out too. */
@@ -21,7 +28,9 @@ export const DEFAULT_SETTINGS: InboxFilerSettings = {
 	inboxFolder: "01 - Inbox",
 	nightly: true,
 	runTime: "22:00",
-	aiEnabled: true,
+	engine: "claude-code",
+	claudePath: "",
+	claudeModel: "",
 	apiKey: "",
 	model: "claude-opus-5-5",
 	excludeFolders: [".trash", "Templates"],
@@ -90,30 +99,56 @@ export class InboxFilerSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Claude").setHeading();
 
 		new Setting(containerEl)
-			.setName("Suggest folders and tags with Claude")
-			.setDesc("For notes no rule catches. Each note's text (up to 6,000 characters) is sent to Anthropic's API.")
-			.addToggle((t) => t.setValue(s.aiEnabled).onChange(async (v) => {
-				s.aiEnabled = v;
-				await save();
-			}));
+			.setName("Suggestions from")
+			.setDesc("For notes no rule catches. Each note's text (up to 6,000 characters) is sent to Claude.")
+			.addDropdown((d) =>
+				d
+					.addOption("claude-code", "Claude Code (your Claude subscription)")
+					.addOption("api", "Anthropic API (pay per use)")
+					.addOption("off", "Off (rules only)")
+					.setValue(s.engine)
+					.onChange(async (v) => {
+						s.engine = v as AiEngine;
+						await save();
+						this.display();
+					}),
+			);
 
-		new Setting(containerEl)
-			.setName("Anthropic API key")
-			.setDesc("From platform.claude.com. Stored only in this vault's plugin data.")
-			.addText((t) => {
-				t.inputEl.type = "password";
-				t.setPlaceholder("sk-ant-…").setValue(s.apiKey).onChange(async (v) => {
-					s.apiKey = v.trim();
+		if (s.engine === "claude-code") {
+			new Setting(containerEl)
+				.setName("Claude Code path")
+				.setDesc("Leave empty to find it automatically. Claude Code must be installed and signed in on this computer.")
+				.addText((t) => t.setPlaceholder("claude").setValue(s.claudePath).onChange(async (v) => {
+					s.claudePath = v.trim();
 					await save();
-				});
-			});
+				}));
+			new Setting(containerEl)
+				.setName("Model")
+				.setDesc("Leave empty to use Claude Code's default.")
+				.addText((t) => t.setPlaceholder("default").setValue(s.claudeModel).onChange(async (v) => {
+					s.claudeModel = v.trim();
+					await save();
+				}));
+		}
 
-		new Setting(containerEl)
-			.setName("Model")
-			.addText((t) => t.setValue(s.model).onChange(async (v) => {
-				s.model = v.trim() || DEFAULT_SETTINGS.model;
-				await save();
-			}));
+		if (s.engine === "api") {
+			new Setting(containerEl)
+				.setName("Anthropic API key")
+				.setDesc("From platform.claude.com. Stored only in this vault's plugin data.")
+				.addText((t) => {
+					t.inputEl.type = "password";
+					t.setPlaceholder("sk-ant-…").setValue(s.apiKey).onChange(async (v) => {
+						s.apiKey = v.trim();
+						await save();
+					});
+				});
+			new Setting(containerEl)
+				.setName("Model")
+				.addText((t) => t.setValue(s.model).onChange(async (v) => {
+					s.model = v.trim() || DEFAULT_SETTINGS.model;
+					await save();
+				}));
+		}
 
 		new Setting(containerEl)
 			.setName("Folders to leave out")
