@@ -11,6 +11,13 @@ export function isIgnored(note: NoteInfo): boolean {
 	return typeof v === "string" && v.toLowerCase() === "ignore";
 }
 
+export interface SkipOptions {
+	/** Note names (without .md) that always stay in the inbox, e.g. a task list. */
+	keepNotes: string[];
+	/** Notes with any of these tags stay in the inbox, e.g. "review". */
+	skipTags: string[];
+}
+
 export function newTags(existing: string[], wanted: string[]): string[] {
 	const have = new Set(existing.map(normaliseTag));
 	const out: string[] = [];
@@ -21,7 +28,13 @@ export function newTags(existing: string[], wanted: string[]): string[] {
 }
 
 /** First pass: skip what must be left alone, then apply rules. Returns the plan and the notes left for AI. */
-export function planWithRules(notes: NoteInfo[], rules: Rule[]): { plan: Plan; leftover: NoteInfo[] } {
+export function planWithRules(
+	notes: NoteInfo[],
+	rules: Rule[],
+	skip: SkipOptions = { keepNotes: [], skipTags: [] },
+): { plan: Plan; leftover: NoteInfo[] } {
+	const keep = new Set(skip.keepNotes.map((n) => n.trim().replace(/\.md$/i, "").toLowerCase()).filter(Boolean));
+	const skipTags = skip.skipTags.map(normaliseTag).filter(Boolean);
 	const items: PlanItem[] = [];
 	const skipped: SkippedItem[] = [];
 	const leftover: NoteInfo[] = [];
@@ -33,6 +46,15 @@ export function planWithRules(notes: NoteInfo[], rules: Rule[]): { plan: Plan; l
 		}
 		if (isClaudeLog(note)) {
 			skipped.push({ path: note.path, reason: "Claude log: your nightly bible task files these" });
+			continue;
+		}
+		if (keep.has(note.basename.toLowerCase())) {
+			skipped.push({ path: note.path, reason: "Always stays in the inbox (see settings)" });
+			continue;
+		}
+		const held = note.tags.find((t) => skipTags.includes(t));
+		if (held) {
+			skipped.push({ path: note.path, reason: `Tagged #${held}, so it waits in the inbox` });
 			continue;
 		}
 		if (isIgnored(note)) {

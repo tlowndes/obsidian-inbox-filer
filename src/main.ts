@@ -95,7 +95,10 @@ export default class InboxFilerPlugin extends Plugin {
 			}
 			const notes = await Promise.all(files.map((f) => this.noteInfo(f)));
 			const folders = this.destinationFolders();
-			const { plan, leftover } = planWithRules(notes, this.settings.rules);
+			const { plan, leftover } = planWithRules(notes, this.settings.rules, {
+				keepNotes: this.settings.keepNotes,
+				skipTags: this.settings.skipTags,
+			});
 
 			let suggestions = null;
 			let aiError: string | null = null;
@@ -107,7 +110,7 @@ export default class InboxFilerPlugin extends Plugin {
 				} else {
 					const notice = new Notice(`Asking Claude about ${leftover.length} note${leftover.length === 1 ? "" : "s"}…`, 0);
 					try {
-						const common = { notes: leftover, folders, tags: this.vaultTags() };
+						const common = { notes: leftover, folders, tags: this.vaultTags(), maxTags: this.settings.maxTags };
 						suggestions =
 							engine === "claude-code"
 								? await suggestWithClaudeCode({
@@ -173,10 +176,11 @@ export default class InboxFilerPlugin extends Plugin {
 			try {
 				const folder = normalizePath(item.folder);
 				await this.ensureFolder(folder);
-				await this.addTags(file, item.addTags);
 				const to = freePath(folder, file.basename, file.extension, (p) => !!this.app.vault.getAbstractFileByPath(p));
-				// renameFile keeps links pointing at the note up to date.
+				// Move first, then tag: tag-based movers such as Auto Note Mover only watch the inbox,
+				// so tagging after the move can't set them off. renameFile keeps links up to date.
 				await this.app.fileManager.renameFile(file, to);
+				await this.addTags(file, item.addTags);
 				moved.push({ from: item.path, to, addedTags: item.addTags });
 			} catch (err) {
 				console.error("Inbox Filer: couldn't file", item.path, err);
@@ -207,8 +211,9 @@ export default class InboxFilerPlugin extends Plugin {
 			const name = file.basename;
 			const back = freePath(parent, name, file.extension, (p) => !!this.app.vault.getAbstractFileByPath(p));
 			await this.ensureFolder(parent);
-			await this.app.fileManager.renameFile(file, back);
+			// Untag before moving back, for the same reason as above.
 			await this.removeTags(file, rec.addedTags);
+			await this.app.fileManager.renameFile(file, back);
 			restored++;
 		}
 		this.settings.lastBatch = [];

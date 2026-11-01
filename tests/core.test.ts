@@ -73,6 +73,23 @@ describe("plan", () => {
 		expect(leftover.map((n) => n.path)).toEqual(["01 - Inbox/misc.md"]);
 	});
 
+	it("keeps named notes and notes with a hold tag in the inbox", () => {
+		const { plan, leftover } = planWithRules(
+			[
+				note({ path: "01 - Inbox/⚡ Quick Task.md", basename: "⚡ Quick Task" }),
+				note({ path: "01 - Inbox/later.md", basename: "later", tags: ["review"] }),
+				note({ path: "01 - Inbox/new.md", basename: "new" }),
+			],
+			[],
+			{ keepNotes: ["⚡ Quick Task.md"], skipTags: ["#Review"] },
+		);
+		expect(plan.skipped.map((s) => s.reason)).toEqual([
+			"Always stays in the inbox (see settings)",
+			"Tagged #review, so it waits in the inbox",
+		]);
+		expect(leftover.map((n) => n.basename)).toEqual(["new"]);
+	});
+
 	it("only accepts AI folders that exist, and unticks notes with no suggestion", () => {
 		const left = [note({ path: "a.md", basename: "a" }), note({ path: "b.md", basename: "b" }), note({ path: "c.md", basename: "c" })];
 		const merged = mergeAiSuggestions(
@@ -140,5 +157,8 @@ describe("ai helpers", () => {
 			JSON.stringify({ suggestions: [{ path: "a.md", folder: "Projects/ ", tags: ["x", 3], reason: " ok " }, { nope: true }] }),
 		);
 		expect(out).toEqual([{ path: "a.md", folder: "Projects", tags: ["x"], reason: "ok" }]);
+		const capped = parseSuggestions(JSON.stringify({ suggestions: [{ path: "a.md", folder: "F", tags: ["a", "b", "c"], reason: "" }] }), 1);
+		expect(capped[0].tags).toEqual(["a"]);
+		expect(buildPrompt([note()], [], [], 1)).toContain("<max_tags>1</max_tags>");
 	});
 });

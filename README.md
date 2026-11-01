@@ -12,11 +12,13 @@ It's the vault version of [Folder Tidy](https://github.com/tlowndes/folder-tidy)
 4. **The preview.** Each note shows where it's going and why: green for a rule, accent colour for Claude, grey when there's no suggestion. Untick anything, change a folder or tags, then press **File**.
 5. **Undo.** Run "Undo last filing" from the command palette to put the last batch back and remove the tags it added.
 
-Notes are moved with Obsidian's own rename, so links to them keep working.
+Notes are moved with Obsidian's own rename, so links to them keep working. Each note is moved first and tagged second, so tag-based movers that watch the inbox (like Auto Note Mover) don't fight over it.
 
 ### Left alone
 
 - Claude logs (`type: claude-log`), because the nightly bible task files those.
+- Notes named in **Always leave these notes**, such as a task list.
+- Notes with a tag from **Leave notes with these tags** (`review` by default).
 - Any note with `inbox-filer: ignore` in its frontmatter.
 - Attachments and anything else that isn't a Markdown note.
 
@@ -34,6 +36,9 @@ Notes are moved with Obsidian's own rename, so links to them keep working.
 | Suggestions from | Claude Code (your Claude subscription) |
 | Claude Code path / model | found automatically / Claude Code's default |
 | Anthropic API key / model (API only) | (empty) / `claude-opus-5-5` |
+| Always leave these notes | (none) |
+| Leave notes with these tags | `review` |
+| Tags per note | 3 |
 | Folders to leave out | `.trash`, `Templates` |
 | Rules | none |
 

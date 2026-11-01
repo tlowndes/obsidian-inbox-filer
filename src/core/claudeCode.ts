@@ -23,7 +23,7 @@ export function claudeCodeArgs(model: string): string[] {
 }
 
 /** Read the JSON that `claude -p --output-format json` prints. */
-export function parseClaudeCodeOutput(stdout: string): AiSuggestion[] {
+export function parseClaudeCodeOutput(stdout: string, maxTags = 3): AiSuggestion[] {
 	let data: { is_error?: boolean; result?: unknown; structured_output?: unknown; subtype?: string };
 	try {
 		data = JSON.parse(stdout.trim());
@@ -35,11 +35,11 @@ export function parseClaudeCodeOutput(stdout: string): AiSuggestion[] {
 		throw new AiError(`Claude Code reported an error${detail}`);
 	}
 	if (data.structured_output && typeof data.structured_output === "object") {
-		return parseSuggestions(JSON.stringify(data.structured_output));
+		return parseSuggestions(JSON.stringify(data.structured_output), maxTags);
 	}
 	if (typeof data.result === "string") {
 		const match = data.result.match(/\{[\s\S]*\}/);
-		if (match) return parseSuggestions(match[0]);
+		if (match) return parseSuggestions(match[0], maxTags);
 	}
 	return [];
 }
@@ -91,18 +91,20 @@ export async function suggestWithClaudeCode(opts: {
 	notes: NoteInfo[];
 	folders: string[];
 	tags: string[];
+	maxTags?: number;
 	platform: string;
 	env: Record<string, string | undefined>;
 	run?: Runner;
 }): Promise<AiSuggestion[]> {
 	const run = opts.run ?? nodeRunner;
+	const maxTags = opts.maxTags ?? 3;
 	const commands = opts.command.trim() ? [opts.command.trim()] : candidatePaths(opts.platform, opts.env);
 	const args = claudeCodeArgs(opts.model);
 	const out: AiSuggestion[] = [];
 	let working: string | null = null;
 
 	for (let i = 0; i < opts.notes.length; i += BATCH_SIZE) {
-		const prompt = buildPrompt(opts.notes.slice(i, i + BATCH_SIZE), opts.folders, opts.tags);
+		const prompt = buildPrompt(opts.notes.slice(i, i + BATCH_SIZE), opts.folders, opts.tags, maxTags);
 		const tryList: string[] = working ? [working] : commands;
 		let result: Awaited<ReturnType<Runner>> | null = null;
 		for (const cmd of tryList) {
@@ -119,7 +121,7 @@ export async function suggestWithClaudeCode(opts: {
 			const hint = /log ?in|auth/i.test(result.stderr) ? " Run `claude` once in a terminal to sign in." : "";
 			throw new AiError(`Claude Code didn't answer.${hint}`);
 		}
-		out.push(...parseClaudeCodeOutput(result.stdout));
+		out.push(...parseClaudeCodeOutput(result.stdout, maxTags));
 	}
 	return out;
 }

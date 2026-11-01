@@ -19,6 +19,12 @@ export interface InboxFilerSettings {
 	model: string;
 	/** Folders never offered as destinations (one per line). Sub-folders are left out too. */
 	excludeFolders: string[];
+	/** Note names that always stay in the inbox. */
+	keepNotes: string[];
+	/** Notes with these tags stay in the inbox. */
+	skipTags: string[];
+	/** Most tags Claude may suggest per note. */
+	maxTags: number;
 	rules: Rule[];
 	lastRun: string | null;
 	lastBatch: MoveRecord[];
@@ -34,6 +40,9 @@ export const DEFAULT_SETTINGS: InboxFilerSettings = {
 	apiKey: "",
 	model: "claude-opus-5-5",
 	excludeFolders: [".trash", "Templates"],
+	keepNotes: [],
+	skipTags: ["review"],
+	maxTags: 3,
 	rules: [],
 	lastRun: null,
 	lastBatch: [],
@@ -73,6 +82,22 @@ export class InboxFilerSettingTab extends PluginSettingTab {
 			.setDesc("Notes at the top level of this folder get filed. Claude logs are always left for your nightly bible task.")
 			.addText((t) => t.setPlaceholder("01 - Inbox").setValue(s.inboxFolder).onChange(async (v) => {
 				s.inboxFolder = v.trim().replace(/\/+$/, "");
+				await save();
+			}));
+
+		new Setting(containerEl)
+			.setName("Always leave these notes")
+			.setDesc("Note names that stay in the inbox, such as a task list. One per line.")
+			.addTextArea((t) => t.setPlaceholder("⚡ Quick Task").setValue(s.keepNotes.join("\n")).onChange(async (v) => {
+				s.keepNotes = v.split("\n").map((x) => x.trim()).filter(Boolean);
+				await save();
+			}));
+
+		new Setting(containerEl)
+			.setName("Leave notes with these tags")
+			.setDesc("Comma separated. For example, review for notes you want to file yourself.")
+			.addText((t) => t.setPlaceholder("review").setValue(s.skipTags.join(", ")).onChange(async (v) => {
+				s.skipTags = v.split(",").map((x) => x.trim().replace(/^#/, "")).filter(Boolean);
 				await save();
 			}));
 
@@ -149,6 +174,14 @@ export class InboxFilerSettingTab extends PluginSettingTab {
 					await save();
 				}));
 		}
+
+		new Setting(containerEl)
+			.setName("Tags per note")
+			.setDesc("The most tags Claude may suggest for each note.")
+			.addSlider((sl) => sl.setLimits(0, 5, 1).setValue(s.maxTags).setDynamicTooltip().onChange(async (v) => {
+				s.maxTags = v;
+				await save();
+			}));
 
 		new Setting(containerEl)
 			.setName("Folders to leave out")
