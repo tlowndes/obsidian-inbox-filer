@@ -1,0 +1,10 @@
+{
+  "id": "inbox-filer",
+  "name": "Inbox Filer",
+  "version": "0.1.0",
+  "minAppVersion": "1.7.2",
+  "description": "Tags and files the notes in your inbox every night, using your rules first and Claude for the rest. Shows a preview before anything moves.",
+  "author": "Tom Lowndes",
+  "authorUrl": "https://github.com/tlowndes",
+  "isDesktopOnly": true
+}
